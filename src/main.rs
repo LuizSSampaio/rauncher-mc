@@ -1,32 +1,9 @@
-use gpui::{AppContext, Application, ParentElement, Render, Styled, WindowOptions, div};
-use gpui_component::{
-    Root, StyledExt,
-    button::{Button, ButtonVariants},
-};
+mod components;
 
-pub struct HelloWorld;
+use gpui::{AppContext, Application, WindowOptions};
+use gpui_component::Root;
 
-impl Render for HelloWorld {
-    fn render(
-        &mut self,
-        _: &mut gpui::Window,
-        _: &mut gpui::Context<Self>,
-    ) -> impl gpui::IntoElement {
-        div()
-            .v_flex()
-            .gap_2()
-            .size_full()
-            .items_center()
-            .justify_center()
-            .child("Hello, World!")
-            .child(
-                Button::new("ok")
-                    .primary()
-                    .label("Let's Go!")
-                    .on_click(|_, _, _| println!("Clicked!")),
-            )
-    }
-}
+use crate::components::instance::Instance;
 
 fn main() {
     let app = Application::new();
@@ -37,7 +14,7 @@ fn main() {
 
         cx.spawn(async move |cx| {
             cx.open_window(WindowOptions::default(), |window, cx| {
-                let view = cx.new(|_| HelloWorld);
+                let view = cx.new(|_| Instance::new(0, "Test".to_string()));
                 // This first level on the window, should be a Root.
                 cx.new(|cx| Root::new(view.into(), window, cx))
             })?;
