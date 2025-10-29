@@ -20,6 +20,7 @@ members = ["crates/rc-core", "crates/rc-instance"]
 
 [workspace.dependencies]
 anyhow = "1.0.100"
+serde = "1.0.228"
 
 [dependencies]
 gpui = "0.2.2"
