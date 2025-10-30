@@ -20,6 +20,9 @@ members = ["crates/rc-core", "crates/rc-instance"]
 
 [workspace.dependencies]
 anyhow = "1.0.100"
+thiserror = "2.0.17"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.20"
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.48.0", features = ["full", "fs"] }
 

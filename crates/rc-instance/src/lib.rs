@@ -2,4 +2,5 @@ pub mod config;
 mod instance;
 mod manager;
 
-pub use manager::InstanceManager;
+pub use instance::Instance;
+pub use manager::{InstanceManager, InstanceManagerError};
