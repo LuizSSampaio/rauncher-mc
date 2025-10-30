@@ -145,6 +145,72 @@ impl InstanceManager {
         Ok(())
     }
 
+    #[instrument(skip(self), level = "debug")]
+    pub async fn save_instance(&self, index: usize) -> Result<(), InstanceManagerError> {
+        let instance_data =
+            self.instances
+                .get(index)
+                .ok_or_else(|| InstanceManagerError::InstanceDoenstExist {
+                    tried_index: index,
+                    instances_count: self.instances.len(),
+                })?;
+
+        let instance_dir = Self::get_instances_dir().await?.join(&instance_data.name);
+        if (tokio::fs::metadata(&instance_dir).await).is_err() {
+            info!(
+                "Instance {} directory doesn't exist, creating: {}",
+                instance_data.name,
+                instance_dir.display()
+            );
+            tokio::fs::create_dir_all(&instance_dir)
+                .await
+                .context("Failed to create instances directory")
+                .map_err(|e| {
+                    error!(
+                        "Failed to create instance {} directory {}: {}",
+                        instance_data.name,
+                        instance_dir.display(),
+                        e
+                    );
+                    InstanceManagerError::DirectoryCreationFailed {
+                        path: instance_dir.clone(),
+                        source: e,
+                    }
+                })?;
+        }
+
+        let toml = toml::to_string_pretty(instance_data)
+            .context("Failed to serialize instance to TOML")
+            .map_err(|e| {
+                error!("Failed to serialize instance {}: {}", instance_data.name, e);
+                InstanceManagerError::InstanceSerializationFailed { source: e }
+            })?;
+        let file_path = instance_dir.join("instance.toml");
+
+        tokio::fs::write(&file_path, toml)
+            .await
+            .context("Failed to write instance.toml file")
+            .map_err(|e| {
+                error!(
+                    "Failed to write instance file {}: {}",
+                    file_path.display(),
+                    e
+                );
+                InstanceManagerError::InstanceFileWriteFailed {
+                    path: file_path.clone(),
+                    source: e,
+                }
+            })?;
+
+        info!(
+            "Successfully saved instance '{}' at {}",
+            instance_data.name,
+            file_path.display()
+        );
+
+        Ok(())
+    }
+
     #[instrument(level = "debug")]
     async fn get_instances_dir() -> Result<PathBuf, InstanceManagerError> {
         debug!("Getting instances directory");
@@ -200,14 +266,8 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
-    fn init_tracing() {
-        let _ = tracing_subscriber::fmt().with_test_writer().try_init();
-    }
-
     #[tokio::test]
     async fn test_load_instances_empty_directory() {
-        init_tracing();
-
         let temp_dir = tempdir().unwrap();
         let empty_dir = temp_dir.path().join("empty_instances");
         fs::create_dir_all(&empty_dir).unwrap();
@@ -221,8 +281,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_load_instance_file_not_found() {
-        init_tracing();
-
         let temp_dir = tempdir().unwrap();
         let instance_dir = temp_dir.path().join("test_instance");
         fs::create_dir_all(&instance_dir).unwrap();
@@ -240,8 +298,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_load_instance_invalid_toml() {
-        init_tracing();
-
         let temp_dir = tempdir().unwrap();
         let instance_dir = temp_dir.path().join("test_instance");
         fs::create_dir_all(&instance_dir).unwrap();
@@ -257,6 +313,24 @@ mod tests {
             assert_eq!(path, instance_file);
         } else {
             panic!("Expected InstanceParsingFailed error");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_save_instance_invalid_index() {
+        let manager = InstanceManager::default();
+        let result = manager.save_instance(0).await;
+
+        assert!(result.is_err());
+        if let Err(InstanceManagerError::InstanceDoenstExist {
+            tried_index,
+            instances_count,
+        }) = result
+        {
+            assert_eq!(tried_index, 0);
+            assert_eq!(instances_count, 0);
+        } else {
+            panic!("Expected InstanceDoenstExist error");
         }
     }
 }
@@ -299,10 +373,31 @@ pub enum InstanceManagerError {
         source: anyhow::Error,
     },
 
+    #[error("Failed to write instance file '{path}': {source}")]
+    InstanceFileWriteFailed {
+        path: PathBuf,
+        #[source]
+        source: anyhow::Error,
+    },
+
     #[error("Failed to parse instance file '{path}': {source}")]
     InstanceParsingFailed {
         path: PathBuf,
         #[source]
         source: anyhow::Error,
+    },
+
+    #[error("Failed to serialize instance: {source}")]
+    InstanceSerializationFailed {
+        #[source]
+        source: anyhow::Error,
+    },
+
+    #[error(
+        "Instance of index '{tried_index}' doesn't exist, the instances len is '{instances_count}'"
+    )]
+    InstanceDoenstExist {
+        tried_index: usize,
+        instances_count: usize,
     },
 }
