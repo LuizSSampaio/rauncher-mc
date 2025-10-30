@@ -17,29 +17,7 @@ impl InstanceManager {
     pub async fn load_instances(&mut self) -> Result<(), InstanceManagerError> {
         info!("Starting to load instances");
 
-        let instances_dir = Self::get_instances_dir()?;
-        debug!("Instances directory: {}", instances_dir.display());
-
-        if (tokio::fs::metadata(&instances_dir).await).is_err() {
-            info!(
-                "Instances directory doesn't exist, creating: {}",
-                instances_dir.display()
-            );
-            tokio::fs::create_dir_all(&instances_dir)
-                .await
-                .context("Failed to create instances directory")
-                .map_err(|e| {
-                    error!(
-                        "Failed to create instances directory {}: {}",
-                        instances_dir.display(),
-                        e
-                    );
-                    InstanceManagerError::DirectoryCreationFailed {
-                        path: instances_dir.clone(),
-                        source: e,
-                    }
-                })?;
-        }
+        let instances_dir = Self::get_instances_dir().await?;
 
         let mut entries = tokio::fs::read_dir(&instances_dir)
             .await
@@ -168,7 +146,7 @@ impl InstanceManager {
     }
 
     #[instrument(level = "debug")]
-    fn get_instances_dir() -> Result<PathBuf, InstanceManagerError> {
+    async fn get_instances_dir() -> Result<PathBuf, InstanceManagerError> {
         debug!("Getting instances directory");
 
         let proj_dirs = ProjectDirs::from("com", "rauncher", "rauncher-mc")
@@ -178,6 +156,27 @@ impl InstanceManager {
             })?;
 
         let instances_dir = proj_dirs.data_dir().join("instances");
+        if (tokio::fs::metadata(&instances_dir).await).is_err() {
+            info!(
+                "Instances directory doesn't exist, creating: {}",
+                instances_dir.display()
+            );
+            tokio::fs::create_dir_all(&instances_dir)
+                .await
+                .context("Failed to create instances directory")
+                .map_err(|e| {
+                    error!(
+                        "Failed to create instances directory {}: {}",
+                        instances_dir.display(),
+                        e
+                    );
+                    InstanceManagerError::DirectoryCreationFailed {
+                        path: instances_dir.clone(),
+                        source: e,
+                    }
+                })?;
+        }
+
         debug!(
             "Instances directory resolved to: {}",
             instances_dir.display()
