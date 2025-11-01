@@ -44,6 +44,24 @@ pub enum RcAuthError {
 
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
+
+    #[error("Storage I/O error: {0}")]
+    StorageIo(#[from] std::io::Error),
+
+    #[error("Cryptography error: {0}")]
+    Crypto(String),
+
+    #[error("Keyring error: {0}")]
+    Keyring(String),
+
+    #[error("Corrupted storage - decryption or integrity check failed")]
+    CorruptedStore,
+
+    #[error("Lock timeout - another process may be using the storage")]
+    LockTimeout,
+
+    #[error("Base64 decode error: {0}")]
+    Base64(#[from] base64::DecodeError),
 }
 
 /// XSTS-specific error codes from XErr field

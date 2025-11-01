@@ -29,7 +29,8 @@
 //!     println!("Visit: {}", auth_url);
 //!     
 //!     // After user authorizes and you receive the redirect URL with code...
-//!     let code = client.parse_redirect(&redirect_url, None)?;
+//!     let redirect_url = "http://localhost:8000/?code=..."; // From user
+//!     let code = client.parse_redirect(redirect_url, None)?;
 //!     
 //!     // Complete the login flow
 //!     let session = client.complete_login_with_code(&code).await?;
@@ -37,7 +38,7 @@
 //!     
 //!     // Later, refresh the session when needed
 //!     if session.needs_refresh() {
-//!         let refreshed = client.refresh_session(&session).await?;
+//!         let _refreshed = client.refresh_session(&session).await?;
 //!     }
 //!     
 //!     Ok(())
@@ -48,20 +49,63 @@
 //!
 //! The crate provides a `TokenStore` trait for persisting sessions:
 //!
-//! ```no_run
+//! ## In-Memory Storage (Testing)
+//!
+//! ```
 //! use rc_auth::{MemoryTokenStore, TokenStore};
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! let store = MemoryTokenStore::new();
 //!
-//! // Save session
-//! # let session = todo!();
+//! // Save session (create a mock session for example)
+//! # use rc_auth::{Session, MsTokens, XblToken, XstsToken, McToken, McProfile};
+//! # let session = Session {
+//! #     ms: MsTokens::new("token".to_string(), None, 3600),
+//! #     xbl: XblToken { token: "xbl".to_string(), uhs: "uhs".to_string(), not_after: None },
+//! #     xsts: XstsToken { token: "xsts".to_string(), uhs: "uhs".to_string(), not_after: None },
+//! #     mc: McToken::new("mc".to_string(), 3600),
+//! #     profile: McProfile { id: "uuid".to_string(), name: "Player".to_string(), skins: vec![], capes: vec![] },
+//! #     xuid: None,
+//! #     gamertag: None,
+//! # };
 //! store.save(session.account_key(), &session).await?;
 //!
 //! // Load session later
-//! if let Some(session) = store.load("account_id").await {
+//! if let Some(session) = store.load("uuid").await {
 //!     println!("Loaded session for: {}", session.profile.name);
 //! }
+//! # Ok(())
+//! # }
+//! # tokio_test::block_on(example());
+//! ```
+//!
+//! ## File-Based Encrypted Storage (Production)
+//!
+//! ```no_run
+//! use rc_auth::{FileTokenStore, NoSecretProvider, TokenStore};
+//! use std::sync::Arc;
+//!
+//! # async fn example() -> anyhow::Result<()> {
+//! // Use OS keyring for key storage (no passphrase needed)
+//! let secret_provider = Arc::new(NoSecretProvider);
+//! let storage_dir = FileTokenStore::default_storage_dir()?;
+//! let store = FileTokenStore::new(storage_dir, secret_provider).await?;
+//!
+//! // Save session (encrypted automatically)
+//! # use rc_auth::{Session, MsTokens, XblToken, XstsToken, McToken, McProfile};
+//! # let session = Session {
+//! #     ms: MsTokens::new("token".to_string(), None, 3600),
+//! #     xbl: XblToken { token: "xbl".to_string(), uhs: "uhs".to_string(), not_after: None },
+//! #     xsts: XstsToken { token: "xsts".to_string(), uhs: "uhs".to_string(), not_after: None },
+//! #     mc: McToken::new("mc".to_string(), 3600),
+//! #     profile: McProfile { id: "uuid".to_string(), name: "Player".to_string(), skins: vec![], capes: vec![] },
+//! #     xuid: None,
+//! #     gamertag: None,
+//! # };
+//! store.save(session.account_key(), &session).await?;
+//!
+//! // Sessions are encrypted using AES-256-GCM
+//! // Keys are stored in OS keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 //! # Ok(())
 //! # }
 //! ```
@@ -75,8 +119,12 @@
 
 pub mod client;
 pub mod config;
+pub mod crypto;
 pub mod errors;
+pub mod file_store;
+pub mod key_manager;
 pub mod models;
+pub mod secret;
 pub mod session;
 pub mod store;
 
@@ -84,6 +132,8 @@ pub mod store;
 pub use client::RcAuthClient;
 pub use config::{AuthorizeFlavor, RcAuthConfig};
 pub use errors::{RcAuthError, Result, XstsError};
+pub use file_store::FileTokenStore;
 pub use models::McProfile;
+pub use secret::{NoSecretProvider, SecretProvider, StaticSecretProvider};
 pub use session::{McToken, MsTokens, Session, XblToken, XstsToken};
 pub use store::{MemoryTokenStore, TokenStore};
