@@ -16,7 +16,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use rc-auth::{RcAuthClient, RcAuthConfig};
+//! use rc_auth::{RcAuthClient, RcAuthConfig};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -52,13 +52,13 @@
 //! ## In-Memory Storage (Testing)
 //!
 //! ```
-//! use rc-auth::{MemoryTokenStore, TokenStore};
+//! use rc_auth::{MemoryTokenStore, TokenStore};
 //!
 //! # async fn example() -> anyhow::Result<()> {
 //! let store = MemoryTokenStore::new();
 //!
 //! // Save session (create a mock session for example)
-//! # use rc-auth::{Session, MsTokens, XblToken, XstsToken, McToken, McProfile};
+//! # use rc_auth::{Session, MsTokens, XblToken, XstsToken, McToken, McProfile};
 //! # let session = Session {
 //! #     ms: MsTokens::new("token".to_string(), None, 3600),
 //! #     xbl: XblToken { token: "xbl".to_string(), uhs: "uhs".to_string(), not_after: None },
@@ -82,7 +82,7 @@
 //! ## File-Based Encrypted Storage (Production)
 //!
 //! ```no_run
-//! use rc-auth::{FileTokenStore, NoSecretProvider, TokenStore};
+//! use rc_auth::{FileTokenStore, NoSecretProvider, TokenStore};
 //! use std::sync::Arc;
 //!
 //! # async fn example() -> anyhow::Result<()> {
@@ -92,7 +92,7 @@
 //! let store = FileTokenStore::new(storage_dir, secret_provider).await?;
 //!
 //! // Save session (encrypted automatically)
-//! # use rc-auth::{Session, MsTokens, XblToken, XstsToken, McToken, McProfile};
+//! # use rc_auth::{Session, MsTokens, XblToken, XstsToken, McToken, McProfile};
 //! # let session = Session {
 //! #     ms: MsTokens::new("token".to_string(), None, 3600),
 //! #     xbl: XblToken { token: "xbl".to_string(), uhs: "uhs".to_string(), not_after: None },
