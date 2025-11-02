@@ -13,8 +13,8 @@ thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
 tokio.workspace = true
+directories.workspace = true
 toml = "0.9.8"
-directories = "6.0.0"
 
 [dev-dependencies]
 tempfile = "3.12.0"
