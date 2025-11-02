@@ -78,9 +78,10 @@ impl FileTokenStore {
 
     /// Get default storage directory for the current platform
     pub fn default_storage_dir() -> Result<PathBuf> {
-        let project_dirs = directories::ProjectDirs::from("", "", "rauncher").ok_or_else(|| {
-            RcAuthError::InvalidResponse("Could not determine config directory".to_string())
-        })?;
+        let project_dirs = directories::ProjectDirs::from("com", "rauncher", "rauncher-mc")
+            .ok_or_else(|| {
+                RcAuthError::InvalidResponse("Could not determine config directory".to_string())
+            })?;
 
         Ok(project_dirs.config_dir().join("rc-auth"))
     }
@@ -95,6 +96,7 @@ impl FileTokenStore {
         let lock_file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(false)
             .open(&self.lock_file)?;
 
         lock_file
