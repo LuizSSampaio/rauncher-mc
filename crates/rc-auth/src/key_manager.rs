@@ -6,7 +6,6 @@ use argon2::{
     Argon2, Params,
 };
 use base64::Engine;
-use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
@@ -185,9 +184,10 @@ impl KeyManager {
                 .decode(salt_b64)
                 .map_err(|_| RcAuthError::CorruptedStore)?
         } else {
-            // Generate new salt
+            // Generate new salt using system randomness
             let mut salt = vec![0u8; SALT_LEN];
-            rand::rngs::OsRng.fill_bytes(&mut salt);
+            getrandom::fill(&mut salt)
+                .map_err(|e| RcAuthError::Crypto(format!("Failed to generate salt: {}", e)))?;
             meta.passphrase_salt = Some(base64::engine::general_purpose::STANDARD.encode(&salt));
             salt
         };
