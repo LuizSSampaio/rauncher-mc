@@ -1,5 +1,5 @@
 use aes_gcm::{
-    Aes256Gcm, Nonce,
+    Aes256Gcm,
     aead::{Aead, KeyInit, OsRng, rand_core::RngCore},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -61,7 +61,7 @@ pub fn encrypt(key: &EncryptionKey, plaintext: &[u8], account_key: &str) -> Resu
     // Generate random 96-bit nonce
     let mut nonce_bytes = [0u8; 12];
     OsRng.fill_bytes(&mut nonce_bytes);
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce = &nonce_bytes.into();
 
     // AAD format: "rc-auth|v1|{account_key}"
     let aad_version = "v1".to_string();
@@ -98,7 +98,10 @@ pub fn decrypt(key: &EncryptionKey, blob: &EncryptedBlob, account_key: &str) -> 
         return Err(RcAuthError::CorruptedStore);
     }
 
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce_array: [u8; 12] = nonce_bytes
+        .try_into()
+        .map_err(|_| RcAuthError::CorruptedStore)?;
+    let nonce = &nonce_array.into();
 
     // Decode ciphertext
     let ciphertext = URL_SAFE_NO_PAD
