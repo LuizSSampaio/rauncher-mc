@@ -1,9 +1,8 @@
 use aes_gcm::{
-    aead::{Aead, KeyInit, OsRng},
     Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit, OsRng, rand_core::RngCore},
 };
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use rand::RngCore;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::errors::{RcAuthError, Result};
@@ -186,16 +185,5 @@ mod tests {
         let result = decrypt(&key, &encrypted, account_key2);
 
         assert!(matches!(result, Err(RcAuthError::CorruptedStore)));
-    }
-
-    #[test]
-    fn test_key_zeroize() {
-        let mut key = EncryptionKey::generate();
-        let key_ptr = key.as_bytes().as_ptr();
-        
-        drop(key);
-
-        // Key should be zeroized on drop
-        // This is a basic test - in practice, zeroize's guarantees are stronger
     }
 }
