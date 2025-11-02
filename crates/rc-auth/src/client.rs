@@ -105,18 +105,21 @@ impl RcAuthClient {
             AuthorizeFlavor::OfficialDesktop => official::SCOPE,
             AuthorizeFlavor::StandardCode => STANDARD_SCOPE,
         };
-        
-        let mut url = Url::parse(endpoints::MS_TOKEN)?;
-        url.query_pairs_mut()
-            .append_pair("client_id", &self.config.client_id)
-            .append_pair("code", code)
-            .append_pair("redirect_uri", self.config.redirect_uri.as_str())
-            .append_pair("grant_type", "authorization_code")
-            .append_pair("scope", scope);
-        
+
         debug!("Exchanging authorization code for tokens");
-        let response = self.http.get(url).send().await?;
-        
+        let response = self
+            .http
+            .post(endpoints::MS_TOKEN)
+            .form(&[
+                ("client_id", self.config.client_id.as_str()),
+                ("code", code),
+                ("redirect_uri", self.config.redirect_uri.as_str()),
+                ("grant_type", "authorization_code"),
+                ("scope", scope),
+            ])
+            .send()
+            .await?;
+
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
@@ -146,17 +149,20 @@ impl RcAuthClient {
             AuthorizeFlavor::OfficialDesktop => official::SCOPE,
             AuthorizeFlavor::StandardCode => STANDARD_SCOPE,
         };
-        
-        let mut url = Url::parse(endpoints::MS_TOKEN)?;
-        url.query_pairs_mut()
-            .append_pair("client_id", &self.config.client_id)
-            .append_pair("refresh_token", refresh_token)
-            .append_pair("grant_type", "refresh_token")
-            .append_pair("scope", scope);
-        
+
         debug!("Refreshing Microsoft access token");
-        let response = self.http.get(url).send().await?;
-        
+        let response = self
+            .http
+            .post(endpoints::MS_TOKEN)
+            .form(&[
+                ("client_id", self.config.client_id.as_str()),
+                ("refresh_token", refresh_token),
+                ("grant_type", "refresh_token"),
+                ("scope", scope),
+            ])
+            .send()
+            .await?;
+
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
