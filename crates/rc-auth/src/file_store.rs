@@ -14,10 +14,10 @@ use crate::session::Session;
 use crate::store::TokenStore;
 
 /// File-based encrypted token store
-/// 
+///
 /// Stores encrypted authentication sessions in per-account files.
 /// Uses OS keyring for key management with passphrase fallback.
-/// 
+///
 /// # Directory Structure
 /// ```text
 /// ~/.config/rauncher/rc-auth/
@@ -39,7 +39,7 @@ pub struct FileTokenStore {
 
 impl FileTokenStore {
     /// Create a new file-based token store
-    /// 
+    ///
     /// # Arguments
     /// * `storage_dir` - Base directory for storage (e.g., ~/.config/rauncher/rc-auth)
     /// * `secret_provider` - Provider for passphrase fallback
@@ -78,10 +78,9 @@ impl FileTokenStore {
 
     /// Get default storage directory for the current platform
     pub fn default_storage_dir() -> Result<PathBuf> {
-        let project_dirs = directories::ProjectDirs::from("", "", "rauncher")
-            .ok_or_else(|| {
-                RcAuthError::InvalidResponse("Could not determine config directory".to_string())
-            })?;
+        let project_dirs = directories::ProjectDirs::from("", "", "rauncher").ok_or_else(|| {
+            RcAuthError::InvalidResponse("Could not determine config directory".to_string())
+        })?;
 
         Ok(project_dirs.config_dir().join("rc-auth"))
     }
@@ -134,16 +133,18 @@ impl FileTokenStore {
         let path = self.account_path(account_key);
 
         // Serialize session
-        let plaintext = serde_json::to_vec(session)
-            .map_err(|e| RcAuthError::InvalidResponse(format!("Failed to serialize session: {}", e)))?;
+        let plaintext = serde_json::to_vec(session).map_err(|e| {
+            RcAuthError::InvalidResponse(format!("Failed to serialize session: {}", e))
+        })?;
 
         // Encrypt
         let key_manager = self.key_manager.read().await;
         let encrypted = crypto::encrypt(key_manager.key(), &plaintext, account_key)?;
 
         // Serialize encrypted blob
-        let encrypted_json = serde_json::to_string_pretty(&encrypted)
-            .map_err(|e| RcAuthError::InvalidResponse(format!("Failed to serialize encrypted blob: {}", e)))?;
+        let encrypted_json = serde_json::to_string_pretty(&encrypted).map_err(|e| {
+            RcAuthError::InvalidResponse(format!("Failed to serialize encrypted blob: {}", e))
+        })?;
 
         // Atomic write: write to temp file, then rename
         let temp_path = path.with_extension("tmp");
@@ -174,7 +175,7 @@ impl FileTokenStore {
         // Load all sessions with current key
         let account_keys = self.list_accounts().await;
         let mut sessions = Vec::new();
-        
+
         for key in &account_keys {
             if let Some(session) = self.load_from_disk(key).await? {
                 sessions.push((key.clone(), session));
@@ -270,10 +271,10 @@ impl TokenStore for FileTokenStore {
 
         while let Ok(Some(entry)) = entries.next_entry().await {
             let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    accounts.push(stem.to_string());
-                }
+            if path.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            {
+                accounts.push(stem.to_string());
             }
         }
 
@@ -303,7 +304,6 @@ mod tests {
         // Create a dummy session
         use crate::models::McProfile;
         use crate::session::*;
-        use chrono::Utc;
 
         let session = Session {
             ms: MsTokens::new("ms_token".to_string(), Some("refresh".to_string()), 3600),

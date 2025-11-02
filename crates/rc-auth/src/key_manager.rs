@@ -2,8 +2,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use argon2::{
-    password_hash::{PasswordHasher, SaltString},
     Argon2, Params,
+    password_hash::{PasswordHasher, SaltString},
 };
 use base64::Engine;
 use serde::{Deserialize, Serialize};
@@ -44,22 +44,18 @@ pub struct KeyManager {
 
 impl KeyManager {
     /// Create a new key manager with OS keyring
-    /// 
+    ///
     /// Tries to load key from OS keyring first. If not found or keyring unavailable,
     /// falls back to passphrase-derived key.
     #[cfg(feature = "keyring-support")]
-    pub async fn new(
-        storage_dir: &Path,
-        secret_provider: Arc<dyn SecretProvider>,
-    ) -> Result<Self> {
+    pub async fn new(storage_dir: &Path, secret_provider: Arc<dyn SecretProvider>) -> Result<Self> {
         let meta_path = storage_dir.join("meta.json");
 
         // Try to load existing metadata
         let mut meta = if meta_path.exists() {
             let content = fs::read_to_string(&meta_path).await?;
-            serde_json::from_str(&content).map_err(|e| {
-                RcAuthError::InvalidResponse(format!("Invalid meta.json: {}", e))
-            })?
+            serde_json::from_str(&content)
+                .map_err(|e| RcAuthError::InvalidResponse(format!("Invalid meta.json: {}", e)))?
         } else {
             KeyMeta::default()
         };
@@ -72,22 +68,23 @@ impl KeyManager {
             }
             Err(e) => {
                 tracing::debug!("Keyring unavailable ({}), using passphrase fallback", e);
-                
+
                 // Try passphrase fallback
                 let key = Self::derive_from_passphrase(&mut meta, &secret_provider).await?;
-                
+
                 // Try to save to keyring for next time
                 if let Err(e) = Self::save_to_keyring(&key) {
                     tracing::warn!("Failed to save key to keyring: {}", e);
                 }
-                
+
                 key
             }
         };
 
         // Save metadata
-        let meta_json = serde_json::to_string_pretty(&meta)
-            .map_err(|e| RcAuthError::InvalidResponse(format!("Failed to serialize meta: {}", e)))?;
+        let meta_json = serde_json::to_string_pretty(&meta).map_err(|e| {
+            RcAuthError::InvalidResponse(format!("Failed to serialize meta: {}", e))
+        })?;
         fs::write(&meta_path, meta_json).await?;
 
         Ok(Self {
@@ -99,18 +96,14 @@ impl KeyManager {
 
     /// Create a new key manager without keyring support
     #[cfg(not(feature = "keyring-support"))]
-    pub async fn new(
-        storage_dir: &Path,
-        secret_provider: Arc<dyn SecretProvider>,
-    ) -> Result<Self> {
+    pub async fn new(storage_dir: &Path, secret_provider: Arc<dyn SecretProvider>) -> Result<Self> {
         let meta_path = storage_dir.join("meta.json");
 
         // Try to load existing metadata
         let mut meta = if meta_path.exists() {
             let content = fs::read_to_string(&meta_path).await?;
-            serde_json::from_str(&content).map_err(|e| {
-                RcAuthError::InvalidResponse(format!("Invalid meta.json: {}", e))
-            })?
+            serde_json::from_str(&content)
+                .map_err(|e| RcAuthError::InvalidResponse(format!("Invalid meta.json: {}", e)))?
         } else {
             KeyMeta::default()
         };
@@ -118,8 +111,9 @@ impl KeyManager {
         let key = Self::derive_from_passphrase(&mut meta, &secret_provider).await?;
 
         // Save metadata
-        let meta_json = serde_json::to_string_pretty(&meta)
-            .map_err(|e| RcAuthError::InvalidResponse(format!("Failed to serialize meta: {}", e)))?;
+        let meta_json = serde_json::to_string_pretty(&meta).map_err(|e| {
+            RcAuthError::InvalidResponse(format!("Failed to serialize meta: {}", e))
+        })?;
         fs::write(&meta_path, meta_json).await?;
 
         Ok(Self {
@@ -202,11 +196,7 @@ impl KeyManager {
         // Parameters: m=64MB, t=3, p=1
         let params = Params::new(65536, 3, 1, Some(32))
             .map_err(|e| RcAuthError::Crypto(format!("Invalid Argon2 params: {}", e)))?;
-        let argon2 = Argon2::new(
-            argon2::Algorithm::Argon2id,
-            argon2::Version::V0x13,
-            params,
-        );
+        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
 
         let salt_string = SaltString::encode_b64(&salt)
             .map_err(|e| RcAuthError::Crypto(format!("Invalid salt: {}", e)))?;
@@ -215,9 +205,9 @@ impl KeyManager {
             .hash_password(passphrase.as_bytes(), &salt_string)
             .map_err(|e| RcAuthError::Crypto(format!("Key derivation failed: {}", e)))?;
 
-        let key_bytes = hash.hash.ok_or_else(|| {
-            RcAuthError::Crypto("Argon2 hash returned no output".to_string())
-        })?;
+        let key_bytes = hash
+            .hash
+            .ok_or_else(|| RcAuthError::Crypto("Argon2 hash returned no output".to_string()))?;
 
         if key_bytes.len() != 32 {
             return Err(RcAuthError::Crypto(format!(
@@ -233,16 +223,16 @@ impl KeyManager {
     }
 
     /// Rotate the encryption key (re-encrypt all data)
-    /// 
+    ///
     /// This should be called by the FileTokenStore to re-encrypt all sessions.
     pub async fn rotate(&mut self, storage_dir: &Path) -> Result<EncryptionKey> {
         // Generate new key
         let new_key = EncryptionKey::generate();
 
-        // Update metadata
+        // Update metadata timestamp
         self.meta.created_at = chrono::Utc::now();
 
-        // Try to save to keyring
+        // Try to save to keyring if available
         #[cfg(feature = "keyring-support")]
         {
             if let Err(e) = Self::save_to_keyring(&new_key) {
@@ -252,8 +242,9 @@ impl KeyManager {
 
         // Save metadata
         let meta_path = storage_dir.join("meta.json");
-        let meta_json = serde_json::to_string_pretty(&self.meta)
-            .map_err(|e| RcAuthError::InvalidResponse(format!("Failed to serialize meta: {}", e)))?;
+        let meta_json = serde_json::to_string_pretty(&self.meta).map_err(|e| {
+            RcAuthError::InvalidResponse(format!("Failed to serialize meta: {}", e))
+        })?;
         fs::write(&meta_path, meta_json).await?;
 
         Ok(new_key)

@@ -9,13 +9,13 @@ use crate::session::Session;
 pub trait TokenStore: Send + Sync {
     /// Load a session by account key (UUID)
     async fn load(&self, account_key: &str) -> Option<Session>;
-    
+
     /// Save a session by account key (UUID)
     async fn save(&self, account_key: &str, session: &Session) -> Result<()>;
-    
+
     /// Remove a session by account key (UUID)
     async fn remove(&self, account_key: &str) -> Result<()>;
-    
+
     /// List all stored account keys
     async fn list_accounts(&self) -> Vec<String>;
 }
@@ -37,13 +37,9 @@ impl MemoryTokenStore {
 #[async_trait::async_trait]
 impl TokenStore for MemoryTokenStore {
     async fn load(&self, account_key: &str) -> Option<Session> {
-        self.sessions
-            .read()
-            .ok()?
-            .get(account_key)
-            .cloned()
+        self.sessions.read().ok()?.get(account_key).cloned()
     }
-    
+
     async fn save(&self, account_key: &str, session: &Session) -> Result<()> {
         self.sessions
             .write()
@@ -51,7 +47,7 @@ impl TokenStore for MemoryTokenStore {
             .insert(account_key.to_string(), session.clone());
         Ok(())
     }
-    
+
     async fn remove(&self, account_key: &str) -> Result<()> {
         self.sessions
             .write()
@@ -59,7 +55,7 @@ impl TokenStore for MemoryTokenStore {
             .remove(account_key);
         Ok(())
     }
-    
+
     async fn list_accounts(&self) -> Vec<String> {
         self.sessions
             .read()

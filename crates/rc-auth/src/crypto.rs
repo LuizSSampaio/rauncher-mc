@@ -56,11 +56,7 @@ pub struct EncryptedBlob {
 }
 
 /// Encrypt plaintext using AES-256-GCM
-pub fn encrypt(
-    key: &EncryptionKey,
-    plaintext: &[u8],
-    account_key: &str,
-) -> Result<EncryptedBlob> {
+pub fn encrypt(key: &EncryptionKey, plaintext: &[u8], account_key: &str) -> Result<EncryptedBlob> {
     let cipher = Aes256Gcm::new(key.as_bytes().into());
 
     // Generate random 96-bit nonce
@@ -74,10 +70,13 @@ pub fn encrypt(
 
     // Encrypt with AAD
     let ciphertext = cipher
-        .encrypt(nonce, aes_gcm::aead::Payload {
-            msg: plaintext,
-            aad: aad.as_bytes(),
-        })
+        .encrypt(
+            nonce,
+            aes_gcm::aead::Payload {
+                msg: plaintext,
+                aad: aad.as_bytes(),
+            },
+        )
         .map_err(|e| RcAuthError::Crypto(format!("Encryption failed: {}", e)))?;
 
     Ok(EncryptedBlob {
@@ -88,22 +87,18 @@ pub fn encrypt(
 }
 
 /// Decrypt ciphertext using AES-256-GCM
-pub fn decrypt(
-    key: &EncryptionKey,
-    blob: &EncryptedBlob,
-    account_key: &str,
-) -> Result<Vec<u8>> {
+pub fn decrypt(key: &EncryptionKey, blob: &EncryptedBlob, account_key: &str) -> Result<Vec<u8>> {
     let cipher = Aes256Gcm::new(key.as_bytes().into());
 
     // Decode nonce
     let nonce_bytes = URL_SAFE_NO_PAD
         .decode(&blob.nonce)
         .map_err(|e| RcAuthError::Crypto(format!("Invalid nonce: {}", e)))?;
-    
+
     if nonce_bytes.len() != 12 {
         return Err(RcAuthError::CorruptedStore);
     }
-    
+
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     // Decode ciphertext
@@ -116,10 +111,13 @@ pub fn decrypt(
 
     // Decrypt with AAD
     let plaintext = cipher
-        .decrypt(nonce, aes_gcm::aead::Payload {
-            msg: &ciphertext,
-            aad: aad.as_bytes(),
-        })
+        .decrypt(
+            nonce,
+            aes_gcm::aead::Payload {
+                msg: &ciphertext,
+                aad: aad.as_bytes(),
+            },
+        )
         .map_err(|_| RcAuthError::CorruptedStore)?;
 
     // Return plaintext (caller should zeroize if needed)
@@ -167,7 +165,7 @@ mod tests {
         let account_key = "test";
 
         let mut encrypted = encrypt(&key, plaintext, account_key).unwrap();
-        
+
         // Tamper with ciphertext
         let mut ct_bytes = URL_SAFE_NO_PAD.decode(&encrypted.ciphertext).unwrap();
         ct_bytes[0] ^= 0xFF;
@@ -196,7 +194,7 @@ mod tests {
         let key_ptr = key.as_bytes().as_ptr();
         
         drop(key);
-        
+
         // Key should be zeroized on drop
         // This is a basic test - in practice, zeroize's guarantees are stronger
     }

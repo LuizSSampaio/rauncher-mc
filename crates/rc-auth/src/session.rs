@@ -22,7 +22,7 @@ impl Session {
     pub fn needs_refresh(&self) -> bool {
         self.mc.is_expired()
     }
-    
+
     /// Get the account key (UUID) for storage
     pub fn account_key(&self) -> &str {
         &self.profile.id
@@ -46,7 +46,7 @@ impl MsTokens {
             expires_at,
         }
     }
-    
+
     pub fn is_expired(&self) -> bool {
         Utc::now() >= self.expires_at
     }
@@ -83,11 +83,11 @@ impl McToken {
             expires_at,
         }
     }
-    
+
     pub fn is_expired(&self) -> bool {
         use crate::config::TOKEN_EXPIRY_SKEW;
-        let skew_duration = chrono::Duration::from_std(TOKEN_EXPIRY_SKEW)
-            .unwrap_or(chrono::Duration::seconds(300));
+        let skew_duration =
+            chrono::Duration::from_std(TOKEN_EXPIRY_SKEW).unwrap_or(chrono::Duration::seconds(300));
         Utc::now() + skew_duration >= self.expires_at
     }
 }

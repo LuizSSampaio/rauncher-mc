@@ -17,7 +17,7 @@ pub mod official {
     pub const CLIENT_ID: &str = "00000000402B5328";
     pub const REDIRECT_URI: &str = "https://login.live.com/oauth20_desktop.srf";
     pub const SCOPE: &str = "service::user.auth.xboxlive.com::MBI_SSL";
-    
+
     /// Additional query parameters for official flow
     pub const EXTRA_PARAMS: &[(&str, &str)] = &[
         ("lw", "1"),
@@ -43,7 +43,7 @@ pub enum AuthorizeFlavor {
     /// Official Minecraft launcher flow (recommended for development)
     /// Uses official client ID and doesn't require app approval
     OfficialDesktop,
-    
+
     /// Standard OAuth2 code flow for custom approved apps
     /// Requires Mojang approval and custom client_id
     StandardCode,
@@ -92,19 +92,19 @@ impl Default for RetryPolicy {
 pub struct RcAuthConfig {
     /// OAuth client ID (use official::CLIENT_ID for development)
     pub client_id: String,
-    
+
     /// OAuth redirect URI
     pub redirect_uri: Url,
-    
+
     /// Authorization flow flavor
     pub authorize_flavor: AuthorizeFlavor,
-    
+
     /// HTTP client timeouts
     pub http_timeouts: HttpTimeouts,
-    
+
     /// Custom user agent (optional)
     pub user_agent: Option<String>,
-    
+
     /// Retry policy
     pub retry: RetryPolicy,
 }
@@ -121,7 +121,7 @@ impl RcAuthConfig {
             retry: RetryPolicy::default(),
         }
     }
-    
+
     /// Create config for custom approved app
     pub fn custom(client_id: String, redirect_uri: Url) -> Self {
         Self {
