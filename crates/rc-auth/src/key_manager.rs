@@ -225,9 +225,29 @@ impl KeyManager {
     /// Rotate the encryption key (re-encrypt all data)
     ///
     /// This should be called by the FileTokenStore to re-encrypt all sessions.
-    pub async fn rotate(&mut self, storage_dir: &Path) -> Result<EncryptionKey> {
-        // Generate new key
-        let new_key = EncryptionKey::generate();
+    ///
+    /// # Behavior
+    /// - If using passphrase-derived key: derives a new key from the passphrase with new salt
+    /// - If using keyring: generates a new random key and saves to keyring
+    ///
+    /// The caller (FileTokenStore) is responsible for re-encrypting all existing sessions
+    /// with the new key. After calling this method, the KeyManager will use the new key
+    /// for all subsequent operations.
+    pub async fn rotate(&mut self, storage_dir: &Path) -> Result<()> {
+        let new_key = if self.meta.passphrase_salt.is_some() {
+            // Was using passphrase derivation - continue using it with new salt
+            tracing::debug!("Rotating key: deriving from passphrase with new salt");
+
+            // Clear old salt to force generation of new one
+            self.meta.passphrase_salt = None;
+
+            // Derive new key (will generate new salt)
+            Self::derive_from_passphrase(&mut self.meta, &self.secret_provider).await?
+        } else {
+            // Was using keyring-only - generate new random key
+            tracing::debug!("Rotating key: generating new random key");
+            EncryptionKey::generate()
+        };
 
         // Update metadata timestamp
         self.meta.created_at = chrono::Utc::now();
@@ -247,7 +267,10 @@ impl KeyManager {
         })?;
         fs::write(&meta_path, meta_json).await?;
 
-        Ok(new_key)
+        // Update our key reference
+        self.key = new_key;
+
+        Ok(())
     }
 }
 
