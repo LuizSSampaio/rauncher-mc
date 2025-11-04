@@ -16,7 +16,12 @@ repository = "https://github.com/LuizSSampaio/rauncher-mc"
 categories = ["games"]
 
 [workspace]
-members = ["crates/rc-auth", "crates/rc-core", "crates/rc-instance"]
+members = [
+  "crates/rc-auth",
+  "crates/rc-core",
+  "crates/rc-instance",
+  "crates/rc-meta",
+]
 
 [workspace.dependencies]
 anyhow = "1.0.100"
